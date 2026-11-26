@@ -269,7 +269,17 @@ static void client_event(const usb_host_client_event_msg_t *msg, void *arg)
 {
     printer_t *p = arg;
     if (msg->event == USB_HOST_CLIENT_EVENT_NEW_DEV && !p->device) {
-        if (usb_host_device_open(p->client, msg->new_dev.address, &p->device) != ESP_OK) return;
+        ESP_LOGI(TAG, "USB NEW DEVICE detected, address=%u",
+         msg->new_dev.address);
+        esp_err_t open_err = usb_host_device_open(
+    p->client, msg->new_dev.address, &p->device);
+
+if (open_err != ESP_OK) {
+    ESP_LOGE(TAG, "USB open failed: %s", esp_err_to_name(open_err));
+    return;
+}
+
+ESP_LOGI(TAG, "USB device opened successfully");
         const usb_config_desc_t *config = NULL;
         if (usb_host_get_active_config_descriptor(p->device, &config) != ESP_OK ||
             !find_printer_interface(config, p) ||
