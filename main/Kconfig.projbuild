@@ -8,21 +8,6 @@ config ZP_WIFI_PASSWORD
     string "Wi-Fi password"
     default "SPX@2026"
 
-config ZP_STATIC_IP
-    string "Static IP address"
-    default "192.168.1.230"
-
-config ZP_SUBNET_MASK
-    string "Subnet mask"
-    default "255.255.255.0"
-
-config ZP_GATEWAY
-    string "Gateway"
-    default "192.168.1.1"
-
-config ZP_DNS
-    string "DNS server"
-    default "192.168.1.1"
 
 config ZP_HOSTNAME
     string "Host name"
