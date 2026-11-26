@@ -2,11 +2,11 @@ menu "ZP450 print server"
 
 config ZP_WIFI_SSID
     string "Wi-Fi SSID"
-    default "YOUR_WIFI"
+    default "SPX Express"
 
 config ZP_WIFI_PASSWORD
     string "Wi-Fi password"
-    default "YOUR_PASSWORD"
+    default "SPX@2026"
 
 config ZP_HOSTNAME
     string "Host name"
