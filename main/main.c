@@ -115,83 +115,24 @@ static void wifi_event(void *arg, esp_event_base_t base, int32_t id, void *data)
     }
 }
 
-
 static void wifi_start(void)
 {
     wifi_events = xEventGroupCreate();
-
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-
     esp_netif_t *netif = esp_netif_create_default_wifi_sta();
-    ESP_ERROR_CHECK(esp_netif_set_hostname(netif, CONFIG_ZP_HOSTNAME));
-
-    // Stop DHCP client before configuring static IPv4
-    ESP_ERROR_CHECK(esp_netif_dhcpc_stop(netif));
-
-    // Configure static IP, subnet mask and gateway
-    esp_netif_ip_info_t ip_info = {0};
-
-    ESP_ERROR_CHECK(esp_netif_str_to_ip4(CONFIG_ZP_STATIC_IP, &ip_info.ip));
-    ESP_ERROR_CHECK(esp_netif_str_to_ip4(CONFIG_ZP_SUBNET_MASK, &ip_info.netmask));
-    ESP_ERROR_CHECK(esp_netif_str_to_ip4(CONFIG_ZP_GATEWAY, &ip_info.gw));
-
-    ESP_ERROR_CHECK(esp_netif_set_ip_info(netif, &ip_info));
-
-    // Configure DNS
-    esp_netif_dns_info_t dns_info = {0};
-
-    ESP_ERROR_CHECK(esp_netif_str_to_ip4(
-        CONFIG_ZP_DNS,
-        &dns_info.ip.u_addr.ip4
-    ));
-
-    dns_info.ip.type = ESP_IPADDR_TYPE_V4;
-
-    ESP_ERROR_CHECK(esp_netif_set_dns_info(
-        netif,
-        ESP_NETIF_DNS_MAIN,
-        &dns_info
-    ));
-
-    ESP_LOGI(TAG, "Static IP configured: %s", CONFIG_ZP_STATIC_IP);
-    ESP_LOGI(TAG, "Gateway: %s", CONFIG_ZP_GATEWAY);
-    ESP_LOGI(TAG, "DNS: %s", CONFIG_ZP_DNS);
+    esp_netif_set_hostname(netif, CONFIG_ZP_HOSTNAME);
 
     wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&init));
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event, NULL));
 
-    ESP_ERROR_CHECK(esp_event_handler_register(
-        WIFI_EVENT,
-        ESP_EVENT_ANY_ID,
-        wifi_event,
-        NULL
-    ));
-
-    ESP_ERROR_CHECK(esp_event_handler_register(
-        IP_EVENT,
-        IP_EVENT_STA_GOT_IP,
-        wifi_event,
-        NULL
-    ));
-
-    wifi_config_t cfg = {0};
-
-    strlcpy(
-        (char *)cfg.sta.ssid,
-        CONFIG_ZP_WIFI_SSID,
-        sizeof(cfg.sta.ssid)
-    );
-
-    strlcpy(
-        (char *)cfg.sta.password,
-        CONFIG_ZP_WIFI_PASSWORD,
-        sizeof(cfg.sta.password)
-    );
-
+    wifi_config_t cfg = { 0 };
+    strlcpy((char *)cfg.sta.ssid, CONFIG_ZP_WIFI_SSID, sizeof(cfg.sta.ssid));
+    strlcpy((char *)cfg.sta.password, CONFIG_ZP_WIFI_PASSWORD, sizeof(cfg.sta.password));
     cfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
     cfg.sta.pmf_cfg.capable = true;
-
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &cfg));
     ESP_ERROR_CHECK(esp_wifi_start());
