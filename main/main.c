@@ -265,35 +265,77 @@ static bool find_printer_interface(const usb_config_desc_t *config, printer_t *p
     return false;
 }
 
+
 static void client_event(const usb_host_client_event_msg_t *msg, void *arg)
 {
     printer_t *p = arg;
+
     if (msg->event == USB_HOST_CLIENT_EVENT_NEW_DEV && !p->device) {
         ESP_LOGI(TAG, "USB NEW DEVICE detected, address=%u",
-         msg->new_dev.address);
+                 msg->new_dev.address);
+
         esp_err_t open_err = usb_host_device_open(
-    p->client, msg->new_dev.address, &p->device);
+            p->client, msg->new_dev.address, &p->device);
 
-if (open_err != ESP_OK) {
-    ESP_LOGE(TAG, "USB open failed: %s", esp_err_to_name(open_err));
-    return;
-}
-
-ESP_LOGI(TAG, "USB device opened successfully");
-        const usb_config_desc_t *config = NULL;
-        if (usb_host_get_active_config_descriptor(p->device, &config) != ESP_OK ||
-            !find_printer_interface(config, p) ||
-            usb_host_interface_claim(p->client, p->device, p->interface_number,
-                                     p->alternate_setting) != ESP_OK) {
-            usb_host_device_close(p->client, p->device);
-            p->device = NULL;
+        if (open_err != ESP_OK) {
+            ESP_LOGE(TAG, "USB open failed: %s",
+                     esp_err_to_name(open_err));
             return;
         }
+
+        ESP_LOGI(TAG, "USB device opened successfully");
+
+        const usb_config_desc_t *config = NULL;
+
+        esp_err_t desc_err =
+            usb_host_get_active_config_descriptor(p->device, &config);
+
+        if (desc_err != ESP_OK) {
+            ESP_LOGE(TAG, "Get USB descriptor failed: %s",
+                     esp_err_to_name(desc_err));
+            goto usb_open_fail;
+        }
+
+        ESP_LOGI(TAG, "USB configuration descriptor obtained");
+
+        if (!find_printer_interface(config, p)) {
+            ESP_LOGE(TAG,
+                     "No suitable USB Printer interface or Bulk OUT endpoint");
+            goto usb_open_fail;
+        }
+
+        ESP_LOGI(TAG,
+                 "Printer interface found: interface=%u, alt=%u, OUT=0x%02x",
+                 p->interface_number, p->alternate_setting, p->out_endpoint);
+
+        esp_err_t claim_err = usb_host_interface_claim(
+            p->client, p->device, p->interface_number,
+            p->alternate_setting);
+
+        if (claim_err != ESP_OK) {
+            ESP_LOGE(TAG, "USB interface claim failed: %s",
+                     esp_err_to_name(claim_err));
+            goto usb_open_fail;
+        }
+
         printer_online = true;
         led_set(LED_PRINTER_READY);
+
         ESP_LOGI(TAG, "USB printer ready: interface %u, endpoint 0x%02x",
                  p->interface_number, p->out_endpoint);
-    } else if (msg->event == USB_HOST_CLIENT_EVENT_DEV_GONE && msg->dev_gone.dev_hdl == p->device) {
+
+        return;
+
+usb_open_fail:
+        usb_host_device_close(p->client, p->device);
+        p->device = NULL;
+        printer_online = false;
+        led_set(LED_PRINTER_OFFLINE);
+        return;
+
+    } else if (msg->event == USB_HOST_CLIENT_EVENT_DEV_GONE &&
+               msg->dev_gone.dev_hdl == p->device) {
+
         p->disconnected = true;
         printer_online = false;
         led_set(LED_PRINTER_OFFLINE);
