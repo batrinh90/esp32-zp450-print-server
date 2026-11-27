@@ -8,7 +8,6 @@ config ZP_WIFI_PASSWORD
     string "Wi-Fi password"
     default "SPX@2026"
 
-
 config ZP_HOSTNAME
     string "Host name"
     default "zp450"
